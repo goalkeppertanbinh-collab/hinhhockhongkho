@@ -11,9 +11,9 @@ const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 // Priority list of models to use.
 const FALLBACK_MODELS = [
-    'gemini-2.5-flash',          // Primary: Fast & Efficient
-    'gemini-flash-lite-latest',  // Secondary: Very fast
-    'gemini-3-pro-preview'       // Tertiary: Powerful backup
+    'gemini-3-pro-preview',      // Primary: Complex Text Tasks (Math)
+    'gemini-2.5-flash',          // Secondary: Fast & Efficient
+    'gemini-flash-lite-latest'   // Tertiary: Very fast
 ];
 
 export const analyzeGeometryProblem = async (text: string, imageBase64?: string, feedback?: string): Promise<GeometryResponse> => {
