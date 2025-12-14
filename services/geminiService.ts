@@ -8,10 +8,16 @@ const FALLBACK_MODELS = [
     'gemini-flash-lite-latest'   // Tertiary: Very fast
 ];
 
-export const analyzeGeometryProblem = async (text: string, imageBase64?: string, feedback?: string): Promise<GeometryResponse> => {
+export const analyzeGeometryProblem = async (text: string, imageBase64?: string, feedback?: string, userApiKey?: string): Promise<GeometryResponse> => {
     
-    // API key must be obtained exclusively from process.env.API_KEY
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Ưu tiên dùng Key người dùng nhập, nếu không có thì dùng Key hệ thống (process.env)
+    const apiKey = userApiKey || process.env.API_KEY;
+    
+    if (!apiKey) {
+        throw new Error("Vui lòng nhập Gemini API Key để sử dụng ứng dụng.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
 
     let userInstruction = `Bài toán: ${text}`;
     
@@ -22,81 +28,81 @@ export const analyzeGeometryProblem = async (text: string, imageBase64?: string,
     }
 
     const prompt = `
-    Bạn là một chuyên gia Toán học và Sư phạm, chuyên về Hình học phẳng THCS (Lớp 6-9) tại Việt Nam (CTST).
-    Nhiệm vụ: Phân tích bài toán và trả về dữ liệu JSON để hiển thị trên ứng dụng học tập.
+    Bạn là một Giáo viên Toán THCS chuyên sâu về bộ sách giáo khoa **"CHÂN TRỜI SÁNG TẠO" (CTST)** theo chương trình **GDPT 2018**.
+    Nhiệm vụ: Phân tích bài toán hình học theo phương pháp **SUY LUẬN NGƯỢC (Phân tích đi lên)** và trả về JSON.
 
-    **QUY TẮC CỐT LÕI (TUYỆT ĐỐI TUÂN THỦ):**
-    1. **CHÍNH TẢ TIẾNG VIỆT**: Chuẩn xác, dùng thuật ngữ SGK (so le trong, đồng vị, cạnh huyền, v.v.).
-    2. **ĐỊNH DẠNG TOÁN**:
-       - Công thức đặt trong \`$\`.
-       - Góc dùng \`\\widehat{ABC}\`. Không dùng \`\\angle\`.
-       - Độ dùng \`90^\\circ\`.
-    
-    **CẤU TRÚC JSON TRẢ VỀ ("branches"):**
-    Hệ thống hiển thị dựa trên mảng \`branches\`. Bạn hãy xử lý theo 2 trường hợp:
+    **🚨 QUY TẮC VỀ KIẾN THỨC (BẮT BUỘC TUÂN THỦ SGK CTST HIỆN HÀNH):**
+    1. **TUYỆT ĐỐI KHÔNG** sử dụng kiến thức đã bị loại bỏ hoặc chưa học trong chương trình mới.
+    2. **Phạm vi kiến thức cho phép (Cập nhật 2024):**
+       - **Lớp 7:** Góc ở vị trí đặc biệt, Tia phân giác, Hai đường thẳng song song (tiên đề Euclid), Tam giác bằng nhau (c.c.c, c.g.c, g.c.g, cạnh huyền-góc nhọn...), Tam giác cân/đều, Định lý Pytago, Các đường đồng quy trong tam giác.
+       - **Lớp 8:** Tứ giác (Hình thang cân, Hình bình hành, Chữ nhật, Thoi, Vuông), Định lý Thalès (Talet), Tam giác đồng dạng.
+       - **Lớp 9:** Đường tròn (Dây và khoảng cách đến tâm, Tiếp tuyến, Vị trí tương đối), Góc với đường tròn.
+    3. **KHÔNG DÙNG:** Các định lý nâng cao ngoài SGK (Menelaus, Ceva, Ptolemy...) trừ khi bài toán quá khó không thể giải bằng cách thường.
+    4. **THUẬT NGỮ:** 
+       - Dùng "Hai tam giác bằng nhau" (không dùng "tương đương").
+       - Dùng "Định lý Thalès" (viết đúng chính tả SGK).
+       - Ký hiệu góc dùng \`\\widehat{ABC}\`.
 
-    **TRƯỜNG HỢP 1: ĐỀ BÀI CÓ NHIỀU Ý (a, b, c...)**
-    - Mảng \`branches\` sẽ chứa các phần tử tương ứng với TỪNG CÂU HỎI.
-    - \`name\`: Đặt là "Câu a", "Câu b", "Câu c".
-    - \`root\`: Sơ đồ tư duy ngược CHỈ CHO CÂU ĐÓ. Node gốc là kết luận của câu đó.
-    - \`forward_proof\`: Lời giải chi tiết CHỈ CHO CÂU ĐÓ.
-    - **Lưu ý**: Câu sau được phép dùng kết quả câu trước như một giả thiết đã biết.
+    **CẤU TRÚC JSON TRẢ VỀ:**
+    Trả về JSON thuần (không bọc trong markdown block). Cấu trúc như sau:
+    - \`branches\`: Mảng các hướng giải (hoặc các câu a, b, c).
+    - \`root\`: Node gốc (Kết luận).
+    - \`children\`: Các bước suy luận ngược (Để chứng minh A cần B, để có B cần C...).
+    - \`type\`: ROOT (Kết luận), NODE (Trung gian), LEAF (Giả thiết/Định lý đã biết).
 
-    **TRƯỜNG HỢP 2: ĐỀ BÀI CHỈ CÓ 1 CÂU HỎI DUY NHẤT**
-    - Mảng \`branches\` sẽ chứa các CÁCH GIẢI KHÁC NHAU (nếu có thể).
-    - \`name\`: Đặt là "Cách 1: ...", "Cách 2: ...".
-
-    **CẤU TRÚC DỮ LIỆU JSON MẪU:**
+    **MẪU DỮ LIỆU JSON:**
     \`\`\`json
     {
-       "hypothesis": ["$\\triangle ABC$ cân tại $A$", "$M$ là trung điểm $BC$"],
-       "conclusion": "a) $\\triangle ABM = \\triangle ACM$; b) $AM \\perp BC$",
+       "hypothesis": ["$\\triangle ABC$ cân tại $A$", "$M$ trung điểm $BC$"],
+       "conclusion": "a) $\\triangle ABM = \\triangle ACM$",
+       "knowledge_used": [
+           { "name": "Trường hợp bằng nhau c.c.c", "description": "Nếu ba cạnh tam giác này bằng ba cạnh tam giác kia...", "textbook_ref": "Toán 7 Tập 2 - CTST" }
+       ],
        "branches": [
            {
-               "id": "part_a",
+               "id": "q1",
                "name": "Câu a",
-               "status": "success", 
-               "explanation": "Chứng minh hai tam giác bằng nhau theo trường hợp c.c.c",
-               "forward_proof": "Xét $\\triangle ABM$ và $\\triangle ACM$ có:...",
+               "status": "success",
+               "explanation": "Dùng trường hợp cạnh-cạnh-cạnh vì đã biết AB=AC, BM=MC, AM chung.",
+               "forward_proof": "Xét $\\triangle ABM$ và $\\triangle ACM$ có: ...",
                "root": { 
-                   "id": "root_a", 
+                   "id": "r1", 
                    "type": "ROOT", 
                    "statement": "$\\triangle ABM = \\triangle ACM$",
                    "method": "Trường hợp c.c.c",
-                   "reason": "Cần chứng minh 3 cặp cạnh bằng nhau",
-                   "children": [ ... ]
-               }
-           },
-           {
-               "id": "part_b",
-               "name": "Câu b",
-               "status": "success", 
-               "explanation": "Sử dụng kết quả câu a (hai góc tương ứng bằng nhau)",
-               "forward_proof": "Ta có $\\triangle ABM = \\triangle ACM$ (cmt) $\\Rightarrow \\widehat{AMB} = \\widehat{AMC}$...",
-               "root": { 
-                   "id": "root_b", 
-                   "type": "ROOT", 
-                   "statement": "$AM \\perp BC$",
-                   "method": "Hai góc kề bù bằng nhau",
-                   "reason": "Cần chứng minh $\\widehat{AMB} = 90^\\circ$",
-                   "children": [ 
+                   "reason": "Cần chỉ ra 3 cặp cạnh tương ứng bằng nhau",
+                   "children": [
                         {
-                            "id": "node_b1", 
-                            "type": "LEAF", 
-                            "statement": "$\\triangle ABM = \\triangle ACM$", 
-                            "method": "Kết quả Câu a",
-                            "reason": "Đã chứng minh ở trên"
+                            "id": "n1",
+                            "type": "NODE",
+                            "statement": "$AB = AC$",
+                            "method": "Tính chất tam giác cân",
+                            "reason": "Do $\\triangle ABC$ cân tại A (GT)",
+                            "isProven": true,
+                            "type": "LEAF" 
+                        },
+                        {
+                            "id": "n2",
+                            "type": "LEAF",
+                            "statement": "$BM = MC$",
+                            "method": "Giả thiết",
+                            "reason": "M là trung điểm BC"
+                        },
+                         {
+                            "id": "n3",
+                            "type": "LEAF",
+                            "statement": "$AM$ là cạnh chung",
+                            "method": "Quan sát hình",
+                            "reason": "Hiển nhiên"
                         }
                    ]
                }
            }
-       ],
-       "knowledge_used": [
-           { "name": "Trường hợp bằng nhau c.c.c", "description": "...", "textbook_ref": "Toán 7 - CTST" }
        ]
     }
     \`\`\`
-    
+
+    **INPUT TỪ NGƯỜI DÙNG:**
     ${userInstruction}
     `;
 
