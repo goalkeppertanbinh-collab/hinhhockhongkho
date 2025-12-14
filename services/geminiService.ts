@@ -1,14 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { GeometryResponse, AnalysisType, LogicNode, AnalysisBranch } from '../types';
 
-const apiKey = process.env.API_KEY;
-
-if (!apiKey) {
-    console.error("API_KEY is missing from environment variables.");
-}
-
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
-
 // Priority list of models to use.
 const FALLBACK_MODELS = [
     'gemini-3-pro-preview',      // Primary: Complex Text Tasks (Math)
@@ -18,6 +10,9 @@ const FALLBACK_MODELS = [
 
 export const analyzeGeometryProblem = async (text: string, imageBase64?: string, feedback?: string): Promise<GeometryResponse> => {
     
+    // API key must be obtained exclusively from process.env.API_KEY
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     let userInstruction = `Bài toán: ${text}`;
     
     if (feedback) {

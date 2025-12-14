@@ -4,6 +4,7 @@ import { GeometryResponse } from './types';
 import { ResultDisplay } from './components/ResultDisplay';
 
 const App: React.FC = () => {
+    // App State
     const [prompt, setPrompt] = useState<string>('');
     const [image, setImage] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
@@ -40,11 +41,12 @@ const App: React.FC = () => {
         setError(null);
 
         try {
+            // Updated call: No API key passed
             const data = await analyzeGeometryProblem(prompt, image || undefined);
             setResult(data);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError("Có lỗi xảy ra khi phân tích bài toán. Vui lòng thử lại chi tiết hơn.");
+            setError(err.message || "Có lỗi xảy ra khi phân tích bài toán.");
         } finally {
             setLoading(false);
         }
@@ -56,11 +58,12 @@ const App: React.FC = () => {
         setError(null);
         
         try {
+             // Updated call: No API key passed
             const data = await analyzeGeometryProblem(prompt, image || undefined, feedback);
             setResult(data);
-        } catch (err) {
+        } catch (err: any) {
              console.error(err);
-             setError("Có lỗi xảy ra khi cập nhật sơ đồ. Vui lòng thử lại.");
+             setError(err.message || "Có lỗi xảy ra khi cập nhật sơ đồ.");
         } finally {
             setLoading(false);
         }
@@ -73,6 +76,7 @@ const App: React.FC = () => {
         setError(null);
     };
 
+    // --- RENDER: MAIN APP ---
     return (
         <div className="min-h-screen flex flex-col font-sans text-gray-900 bg-gradient-to-br from-indigo-50/50 via-white/80 to-blue-50/50">
             {/* Glassmorphism Header */}
@@ -86,10 +90,12 @@ const App: React.FC = () => {
                             GeoSolver <span className="text-indigo-600 font-medium">CTST</span>
                         </h1>
                     </div>
-                    <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-500">
-                        <a href="#" className="hover:text-indigo-600 transition-colors">Hướng dẫn</a>
-                        <a href="#" className="hover:text-indigo-600 transition-colors">Sách CTST</a>
-                    </nav>
+                    <div className="flex items-center gap-4">
+                        <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-500">
+                            <a href="#" className="hover:text-indigo-600 transition-colors">Hướng dẫn</a>
+                            <a href="#" className="hover:text-indigo-600 transition-colors">Sách CTST</a>
+                        </nav>
+                    </div>
                 </div>
             </header>
 
